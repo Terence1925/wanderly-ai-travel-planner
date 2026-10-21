@@ -158,7 +158,7 @@ export default function HomePage() {
 
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-10 text-sm text-muted-foreground sm:flex-row sm:px-6">
-          <p>© {new Date().getFullYear()} Wanderly. Built with Next.js, Supabase and Claude.</p>
+          <p>© {new Date().getFullYear()} Wanderly. Built with Next.js, Supabase and generative AI.</p>
           <div className="flex items-center gap-5">
             <span className="flex items-center gap-1.5"><Radio className="size-4" /> Realtime</span>
             <span className="flex items-center gap-1.5"><ShieldCheck className="size-4" /> Row-level security</span>

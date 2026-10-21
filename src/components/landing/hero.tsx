@@ -132,7 +132,7 @@ export function Hero() {
             animate={{ opacity: 1, y: 0 }}
             className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card/70 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur"
           >
-            <Sparkles className="size-3.5 text-accent" /> Powered by Claude · Live streaming itineraries
+            <Sparkles className="size-3.5 text-accent" /> AI-powered · Live streaming itineraries
           </motion.p>
           <motion.h1
             initial={{ opacity: 0, y: 16 }}
