@@ -11,7 +11,8 @@ export async function GET(request: Request) {
   const supabase = await getSupabaseServer();
   if (code && supabase) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(new URL(next, url.origin));
+    // Concatenate rather than resolve, so the path can never change the host.
+    if (!error) return NextResponse.redirect(`${url.origin}${next}`);
   }
   return NextResponse.redirect(new URL("/sign-in?error=auth", url.origin));
 }

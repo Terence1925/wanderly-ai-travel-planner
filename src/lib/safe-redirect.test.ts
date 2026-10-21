@@ -15,6 +15,8 @@ describe("safeRedirectPath", () => {
     ["backslash trick", "/\\evil.com"],
     ["encoded tab trick", "/\t/evil.com"],
     ["javascript scheme", "javascript:alert(1)"],
+    ["dot-segment trick", "/.//evil.com"],
+    ["encoded dot-segment trick", "/%2e//evil.com"],
   ])("falls back for %s", (_label, next) => {
     expect(safeRedirectPath(next, ORIGIN)).toBe("/trips");
   });
