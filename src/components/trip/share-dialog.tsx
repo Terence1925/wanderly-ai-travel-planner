@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Cloud, Copy, Globe, Lock, UserPlus } from "lucide-react";
@@ -9,7 +9,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { useAuth } from "@/components/providers";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
-import { createCloudTrip, setTripPublic } from "@/lib/trips/cloud";
+import { createCloudTrip, getInviteCode, setTripPublic } from "@/lib/trips/cloud";
 import { deleteLocalTrip } from "@/lib/trips/local";
 import { cn } from "@/lib/utils";
 import { useTripStore } from "@/store/trip-store";
@@ -45,10 +45,21 @@ export function ShareDialog({ open, onClose }: { open: boolean; onClose: () => v
   const { user, isEnabled } = useAuth();
   const trip = useTripStore((s) => s.trip);
   const [isWorking, setIsWorking] = useState(false);
-  if (!trip) return null;
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const isOwner = Boolean(user && trip?.ownerId === user.id);
+  const tripId = trip?.isCloud ? trip.id : null;
 
+  // The invite code is only readable by the owner, through a dedicated database function.
+  useEffect(() => {
+    const supabase = getSupabaseBrowser();
+    if (!open || !isOwner || !tripId || !supabase) return setInviteCode(null);
+    getInviteCode(supabase, tripId)
+      .then(setInviteCode)
+      .catch(() => setInviteCode(null));
+  }, [open, isOwner, tripId]);
+
+  if (!trip) return null;
   const origin = typeof window === "undefined" ? "" : window.location.origin;
-  const isOwner = Boolean(user && trip.ownerId === user.id);
 
   const moveToCloud = async () => {
     const supabase = getSupabaseBrowser();
@@ -124,8 +135,8 @@ export function ShareDialog({ open, onClose }: { open: boolean; onClose: () => v
             </button>
           )}
           {trip.isPublic && trip.shareSlug && <CopyRow label="Public view link" url={`${origin}/share/${trip.shareSlug}`} icon={Globe} />}
-          {isOwner && trip.inviteCode && (
-            <CopyRow label="Invite collaborators (can edit)" url={`${origin}/join/${trip.inviteCode}`} icon={UserPlus} />
+          {isOwner && inviteCode && (
+            <CopyRow label="Invite collaborators (can edit)" url={`${origin}/join/${inviteCode}`} icon={UserPlus} />
           )}
           {!isOwner && <p className="text-sm text-muted-foreground">Only the trip owner can change sharing settings.</p>}
         </div>

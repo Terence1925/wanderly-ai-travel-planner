@@ -17,14 +17,13 @@ export interface TripRow {
   cover_image: string | null;
   is_public: boolean;
   share_slug: string;
-  invite_code: string;
   updated_by: string | null;
   created_at: string;
   updated_at: string;
 }
 
 const COLUMNS =
-  "id, owner_id, title, destination, start_date, end_date, travelers, request, itinerary, cover_image, is_public, share_slug, invite_code, updated_by, created_at, updated_at";
+  "id, owner_id, title, destination, start_date, end_date, travelers, request, itinerary, cover_image, is_public, share_slug, updated_by, created_at, updated_at";
 
 /** Validates JSON columns on the way in: the database is a trust boundary too. */
 export function rowToTrip(row: TripRow): TripRecord | null {
@@ -39,7 +38,6 @@ export function rowToTrip(row: TripRow): TripRecord | null {
     itinerary: itinerary.data,
     isPublic: row.is_public,
     shareSlug: row.share_slug,
-    inviteCode: row.invite_code,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -102,6 +100,13 @@ export async function updateCloudTrip(
 export async function setTripPublic(supabase: SupabaseClient, id: string, isPublic: boolean): Promise<void> {
   const { error } = await supabase.from("trips").update({ is_public: isPublic }).eq("id", id);
   if (error) throw new Error(error.message);
+}
+
+/** Owner-only: the invite code is hidden from normal reads because it grants edit access. */
+export async function getInviteCode(supabase: SupabaseClient, tripId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc("get_invite_code", { p_trip_id: tripId });
+  if (error) throw new Error(error.message);
+  return (data as string | null) ?? null;
 }
 
 export async function deleteCloudTrip(supabase: SupabaseClient, id: string): Promise<void> {

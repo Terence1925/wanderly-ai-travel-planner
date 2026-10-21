@@ -96,7 +96,7 @@ Both services have free tiers that cover a portfolio project. The only paid part
 ### 1. Supabase (database, auth, realtime)
 
 1. Create a project at [supabase.com](https://supabase.com) (free tier).
-2. Open **SQL Editor**, paste the contents of `supabase/migrations/0001_init.sql`, and run it.
+2. Open **SQL Editor** and run each file in `supabase/migrations/` in order: `0001_init.sql`, then `0002_security_fixes.sql`.
 3. **Authentication → URL Configuration**: set *Site URL* to your Vercel URL and add `https://YOUR-APP.vercel.app/auth/callback` and `http://localhost:3000/auth/callback` to *Redirect URLs*.
 4. Optional Google sign-in: **Authentication → Providers → Google**, add a Google OAuth client, then set `NEXT_PUBLIC_AUTH_GOOGLE=true`.
 5. Copy the project URL, the anon key and the service-role key from **Project Settings → API**.
@@ -121,10 +121,11 @@ The AI routes stream for up to 60 seconds, which is within the Vercel Hobby limi
 ## Security notes
 
 - API keys are only read on the server; the Supabase anon key is public by design and every table has RLS.
-- Collaborators join only through a secret invite code (`join_trip` RPC). Only owners can change sharing settings, which a trigger enforces.
+- Collaborators join only through a secret invite code (`join_trip` RPC). The code is hidden from normal reads by column privileges and only the owner can fetch it (`get_invite_code`). Only owners can change sharing settings, which a trigger enforces.
+- Chat messages can only be inserted as the signed-in user.
 - The rate-limit function is executable only by the service role, so visitors can't exhaust the quota directly.
 - AI output is validated line by line and rendered as text, never as HTML. Traveller notes are wrapped in delimiters and treated as preferences only.
-- Post-login redirects accept same-site relative paths only.
+- Post-login redirects are parsed and must resolve to the same origin (blocks `/\evil.com`-style open redirects).
 
 ## Known limitations
 

@@ -6,12 +6,9 @@ import { Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { Logo } from "@/components/site-header";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 
-/** Only same-site relative paths are allowed as post-login redirects. */
-function safeNext(next: string | null): string {
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/trips";
-}
 
 function GoogleIcon() {
   return (
@@ -26,7 +23,8 @@ function GoogleIcon() {
 
 function SignInForm() {
   const params = useSearchParams();
-  const next = safeNext(params.get("next"));
+  const origin = typeof window === "undefined" ? "http://localhost" : window.location.origin;
+  const next = safeRedirectPath(params.get("next"), origin);
   const hasAuthError = params.get("error") === "auth";
   const supabase = getSupabaseBrowser();
   const [email, setEmail] = useState("");

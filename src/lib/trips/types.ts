@@ -9,7 +9,6 @@ export interface TripRecord {
   itinerary: Itinerary;
   isPublic?: boolean;
   shareSlug?: string;
-  inviteCode?: string;
   createdAt: string;
   updatedAt: string;
 }
