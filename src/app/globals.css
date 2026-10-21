@@ -1,0 +1,138 @@
+@import "tailwindcss";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #fbf8f3;
+  --foreground: #0e1b2c;
+  --card: #ffffff;
+  --card-foreground: #0e1b2c;
+  --muted: #f3ede4;
+  --muted-foreground: #5d6878;
+  --border: #e8e0d4;
+  --primary: #0b3d59;
+  --primary-foreground: #ffffff;
+  --accent: #ee5a36;
+  --accent-foreground: #ffffff;
+  --ring: #ee5a36;
+  --success: #15803d;
+  --danger: #c2410c;
+  --glass: rgb(255 255 255 / 0.72);
+  /* Chart series: CVD-validated against the light card surface. */
+  --series-accommodation: #2a78d6;
+  --series-food: #eb6834;
+  --series-activities: #1baf7a;
+  --series-transport: #eda100;
+}
+
+.dark {
+  --background: #08111f;
+  --foreground: #edf2f8;
+  --card: #0f1b2d;
+  --card-foreground: #edf2f8;
+  --muted: #16243a;
+  --muted-foreground: #9aa8bb;
+  --border: #22334c;
+  --primary: #7dd3e8;
+  --primary-foreground: #06202e;
+  --accent: #ff7a55;
+  --accent-foreground: #1a0a04;
+  --ring: #ff7a55;
+  --success: #4ade80;
+  --danger: #fb923c;
+  --glass: rgb(15 27 45 / 0.72);
+  --series-accommodation: #3987e5;
+  --series-food: #d95926;
+  --series-activities: #199e70;
+  --series-transport: #c98500;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-glass: var(--glass);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+  --animate-shimmer: shimmer 2.2s linear infinite;
+  --animate-float: float 7s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@layer base {
+  * { border-color: var(--border); }
+  html { -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+  ::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .skeleton {
+    background: linear-gradient(90deg, var(--muted) 25%, color-mix(in srgb, var(--muted) 55%, var(--card)) 50%, var(--muted) 75%);
+    background-size: 200% 100%;
+    animation: var(--animate-shimmer);
+  }
+  .scrollbar-thin { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
+
+/* MapLibre popups follow the app theme. */
+.maplibregl-popup-content {
+  background: var(--card) !important;
+  color: var(--card-foreground);
+  border-radius: 14px !important;
+  padding: 10px 14px !important;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.18) !important;
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+.maplibregl-popup-tip { border-top-color: var(--card) !important; border-bottom-color: var(--card) !important; }
+.maplibregl-ctrl-attrib { font-size: 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  header, nav, .no-print { display: none !important; }
+  body { background: white; color: black; }
+}

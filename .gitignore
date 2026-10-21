@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+coverage
+*.tsbuildinfo
+.env
+.env*.local
+.vercel
+npm-debug.log*
+.DS_Store
+
+# Generated from node_modules by scripts/copy-maplibre-worker.mjs
+public/vendor
+
+# Local Claude Code tooling
+.claude/
