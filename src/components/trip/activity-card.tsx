@@ -50,12 +50,13 @@ export const ActivityCard = forwardRef<HTMLLIElement, ActivityCardProps>(functio
   return (
     <motion.li
       ref={ref}
+      id={`activity-${a.id}`}
       style={style}
       layout="position"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 28 }}
-      className={cn("relative pl-12", isDragging && "z-10 opacity-80")}
+      className={cn("relative scroll-mt-48 pl-12", isDragging && "z-10 opacity-80")}
     >
       <span
         className="absolute left-0 top-4 grid size-8 place-items-center rounded-full text-xs font-bold text-white shadow-md ring-4 ring-background"

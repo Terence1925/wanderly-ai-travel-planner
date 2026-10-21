@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTheme } from "next-themes";
 import { setWorkerUrl } from "maplibre-gl";
+import { Pause, Play, Square } from "lucide-react";
 import Map, { Layer, Marker, NavigationControl, Popup, Source, type MapRef } from "react-map-gl/maplibre";
 import type { FeatureCollection, LineString } from "geojson";
 import { dayColor } from "@/lib/categories";
 import type { Itinerary } from "@/lib/schema";
 import { cn, formatDuration } from "@/lib/utils";
+import { useTripPlayback } from "./use-trip-playback";
 
 // Copied into /public by scripts/copy-maplibre-worker.mjs (see the comment there).
 // Must be absolute: MapLibre may bootstrap it from a blob: URL, where relative paths don't resolve.
@@ -66,32 +68,43 @@ export default function TripMap({
     [visibleDays],
   );
 
-  // Refit when the set of stops changes (new stops streaming in, a day focused).
-  const boundsKey = points.map((p) => p.id).join("|");
-  useEffect(() => {
+  const pointsRef = useRef(points);
+  pointsRef.current = points;
+
+  /** Frames every visible stop. Reads from a ref so its identity stays stable for playback. */
+  const fitAll = useCallback(() => {
     const map = mapRef.current;
-    if (!map || points.length === 0) return;
-    if (points.length === 1) {
-      map.flyTo({ center: [points[0]!.lng, points[0]!.lat], zoom: 14, duration: 800 });
+    const all = pointsRef.current;
+    if (!map || all.length === 0) return;
+    if (all.length === 1) {
+      map.flyTo({ center: [all[0]!.lng, all[0]!.lat], zoom: 14, duration: 800 });
       return;
     }
-    const lngs = points.map((p) => p.lng);
-    const lats = points.map((p) => p.lat);
+    const lngs = all.map((p) => p.lng);
+    const lats = all.map((p) => p.lat);
     map.fitBounds(
       [
         [Math.min(...lngs), Math.min(...lats)],
         [Math.max(...lngs), Math.max(...lats)],
       ],
-      { padding: 64, duration: 900, maxZoom: 15 },
+      { padding: 64, duration: 900, maxZoom: 15, pitch: 0, bearing: 0 },
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boundsKey]);
+  }, []);
 
-  // Fly to the selected stop when chosen from the timeline.
+  const playback = useTripPlayback({ mapRef, stops: points, onSelect, onFinish: fitAll });
+  const isPlayingRef = useRef(false);
+  isPlayingRef.current = playback.isPlaying;
+
+  // Refit when the set of stops changes (new stops streaming in, a day focused).
+  const boundsKey = points.map((p) => p.id).join("|");
   useEffect(() => {
-    const p = points.find((x) => x.id === selectedId);
-    if (p) mapRef.current?.easeTo({ center: [p.lng, p.lat], duration: 600 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!isPlayingRef.current) fitAll();
+  }, [boundsKey, fitAll]);
+
+  // Pan to a stop chosen from the timeline; playback drives its own camera.
+  useEffect(() => {
+    const p = pointsRef.current.find((x) => x.id === selectedId);
+    if (p && !isPlayingRef.current) mapRef.current?.easeTo({ center: [p.lng, p.lat], duration: 600 });
   }, [selectedId]);
 
   const selected = points.find((p) => p.id === selectedId);
@@ -112,8 +125,25 @@ export default function TripMap({
         interactive={interactive}
         style={{ width: "100%", height: "100%" }}
         onClick={() => onSelect?.(null)}
+        onDragStart={(e) => e.originalEvent && playback.pause()}
+        onZoomStart={(e) => e.originalEvent && playback.pause()}
       >
         {interactive && <NavigationControl position="top-right" showCompass={false} />}
+
+        {/* Extruded buildings from the basemap tiles; they rise when the camera tilts. */}
+        <Layer
+          id="buildings-3d"
+          type="fill-extrusion"
+          source="openmaptiles"
+          source-layer="building"
+          minzoom={14}
+          paint={{
+            "fill-extrusion-color": resolvedTheme === "dark" ? "#22324c" : "#e6dccd",
+            "fill-extrusion-height": ["coalesce", ["get", "render_height"], 8],
+            "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+            "fill-extrusion-opacity": 0.75,
+          }}
+        />
 
         <Source id="routes" type="geojson" data={routes}>
           <Layer
@@ -172,6 +202,36 @@ export default function TripMap({
           </Popup>
         )}
       </Map>
+
+      {interactive && points.length > 1 && (
+        <div className="absolute bottom-24 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card/90 p-1 shadow-xl backdrop-blur lg:bottom-4">
+          <button
+            type="button"
+            onClick={playback.isPlaying ? playback.pause : playback.play}
+            aria-label={playback.isPlaying ? "Pause trip playback" : "Play trip as a fly-through"}
+            className="flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-foreground shadow-md shadow-accent/30 transition hover:brightness-110"
+          >
+            {playback.isPlaying ? <Pause className="size-4" /> : <Play className="size-4 fill-current" />}
+            {playback.isPlaying ? "Pause" : playback.index > 0 ? "Resume" : "Play trip"}
+          </button>
+          {(playback.isPlaying || playback.index > 0) && (
+            <>
+              <span className="px-2 text-xs tabular-nums text-muted-foreground" aria-live="polite">
+                {playback.current ? `Day ${playback.current.day} · ` : ""}
+                {Math.min(playback.index + 1, playback.total)}/{playback.total}
+              </span>
+              <button
+                type="button"
+                onClick={playback.stop}
+                aria-label="Stop playback"
+                className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <Square className="size-3.5 fill-current" />
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {itinerary.days.length > 1 && interactive && (
         <div className="pointer-events-none absolute left-3 right-14 top-3 flex flex-wrap gap-1.5">

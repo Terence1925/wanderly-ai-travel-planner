@@ -7,6 +7,7 @@ import { ArrowRight, MapPin, Sparkles, Sun, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_META } from "@/lib/categories";
 import type { Activity } from "@/lib/schema";
+import { Globe } from "./globe";
 
 const PROMPTS = [
   "4 days in Kyoto, temples and street food",
@@ -184,22 +185,28 @@ export function Hero() {
           </div>
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 24, rotate: 1.5 }}
-          animate={{ opacity: 1, y: 0, rotate: 0 }}
-          transition={{ delay: 0.2, type: "spring", stiffness: 90 }}
-          className="relative mx-auto w-full max-w-md lg:animate-float"
-        >
-          <StreamingPreview />
-          <div className="absolute -bottom-6 -left-6 hidden rounded-2xl border border-border bg-card px-4 py-3 shadow-xl sm:block">
-            <p className="text-xs text-muted-foreground">Estimated total</p>
-            <p className="font-display text-2xl">¥84,200</p>
+        <div className="relative mx-auto w-full max-w-md">
+          {/* The globe sits behind the card and bleeds past it; drag to spin. */}
+          <div className="absolute left-1/2 top-1/2 w-[150%] max-w-[720px] -translate-x-1/2 -translate-y-1/2 sm:w-[170%] lg:left-[68%] lg:top-[42%]">
+            <Globe />
           </div>
-          <div className="absolute -right-4 -top-5 hidden rounded-2xl border border-border bg-card px-4 py-2.5 shadow-xl sm:flex sm:items-center sm:gap-2">
-            <Sun className="size-5 text-amber-500" />
-            <span className="text-sm font-medium">19° · Clear</span>
-          </div>
-        </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 24, rotate: 1.5 }}
+            animate={{ opacity: 1, y: 0, rotate: 0 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 90 }}
+            className="pointer-events-none relative lg:animate-float [&_*]:pointer-events-auto"
+          >
+            <StreamingPreview />
+            <div className="absolute -bottom-6 -left-6 hidden rounded-2xl border border-border bg-card px-4 py-3 shadow-xl sm:block">
+              <p className="text-xs text-muted-foreground">Estimated total</p>
+              <p className="font-display text-2xl">¥84,200</p>
+            </div>
+            <div className="absolute -right-4 -top-5 hidden rounded-2xl border border-border bg-card px-4 py-2.5 shadow-xl sm:flex sm:items-center sm:gap-2">
+              <Sun className="size-5 text-amber-500" />
+              <span className="text-sm font-medium">19° · Clear</span>
+            </div>
+          </motion.div>
+        </div>
       </div>
     </section>
   );
