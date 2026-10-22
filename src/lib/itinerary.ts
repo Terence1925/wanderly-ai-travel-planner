@@ -94,37 +94,55 @@ export interface BudgetBreakdown {
   transport: number;
   total: number;
   perPerson: number;
-  perDay: { day: number; activities: number }[];
+  /** Cost of the stops listed on each day, for the whole group. */
+  perDay: { day: number; listed: number }[];
+  /** False when the AI's daily estimates (stay, extra food, local transport) are missing. */
+  hasEstimates: boolean;
+}
+
+type BudgetCategory = "accommodation" | "food" | "transport" | "activities";
+
+function budgetCategory(category: Activity["category"]): BudgetCategory {
+  if (category === "food") return "food";
+  if (category === "transport") return "transport";
+  if (category === "accommodation") return "accommodation";
+  return "activities";
 }
 
 /**
- * Activity costs are per person; daily food/transport estimates are per person;
- * accommodation is per room-night, assuming two travellers share a room.
+ * Listed stops are costed per person and filed under their category, so a lunch stop
+ * counts as Food. The AI's daily estimates add what the stops don't cover: lodging
+ * (per room-night, two travellers per room), snacks and drinks, and local transport.
  */
 export function computeBudget(itinerary: Itinerary, travelers: number): BudgetBreakdown {
   const people = Math.max(1, travelers);
   const dayCount = itinerary.days.length;
   const nights = Math.max(0, dayCount - 1);
   const rooms = Math.ceil(people / 2);
+  const totals: Record<BudgetCategory, number> = { accommodation: 0, food: 0, transport: 0, activities: 0 };
 
-  const perDay = itinerary.days.map((d) => ({
-    day: d.day,
-    activities: d.activities.reduce((sum, a) => sum + a.cost, 0) * people,
-  }));
-  const activities = perDay.reduce((sum, d) => sum + d.activities, 0);
-  const accommodation = (itinerary.budget?.accommodationPerNight ?? 0) * nights * rooms;
-  const food = (itinerary.budget?.foodPerDay ?? 0) * dayCount * people;
-  const transport = (itinerary.budget?.transportPerDay ?? 0) * dayCount * people;
-  const total = accommodation + food + activities + transport;
+  const perDay = itinerary.days.map((d) => {
+    let listed = 0;
+    for (const a of d.activities) {
+      const cost = a.cost * people;
+      totals[budgetCategory(a.category)] += cost;
+      listed += cost;
+    }
+    return { day: d.day, listed };
+  });
+
+  const estimate = itinerary.budget;
+  totals.accommodation += (estimate?.accommodationPerNight ?? 0) * nights * rooms;
+  totals.food += (estimate?.foodPerDay ?? 0) * dayCount * people;
+  totals.transport += (estimate?.transportPerDay ?? 0) * dayCount * people;
+  const total = totals.accommodation + totals.food + totals.activities + totals.transport;
 
   return {
-    accommodation,
-    food,
-    activities,
-    transport,
+    ...totals,
     total,
     perPerson: total / people,
     perDay,
+    hasEstimates: Boolean(estimate),
   };
 }
 

@@ -9,6 +9,7 @@ import {
   reorderActivities,
 } from "@/lib/itinerary";
 import { SAMPLE_TRIPS } from "@/lib/demo/samples";
+import { parseEventLine } from "@/lib/ndjson";
 import { itinerarySchema, tripLength, tripRequestSchema, type Activity } from "@/lib/schema";
 
 const act = (id: string, time: string, cost = 0): Activity => ({
@@ -103,21 +104,74 @@ describe("editing", () => {
 });
 
 describe("computeBudget", () => {
-  it("scales per-person costs and shares rooms between two travellers", () => {
-    const it = { ...base(), budget: { accommodationPerNight: 100, foodPerDay: 30, transportPerDay: 10 } };
+  const withCategories = () => {
+    const it = base();
+    // base(): day 1 = a (10), b (20), c (0); day 2 = d (5). Re-categorise a few stops.
+    const recat: Record<string, Activity["category"]> = { a: "culture", b: "food", d: "transport" };
+    return {
+      ...it,
+      days: it.days.map((day) => ({
+        ...day,
+        activities: day.activities.map((x) => ({ ...x, category: recat[x.id] ?? x.category })),
+      })),
+    };
+  };
+
+  it("files listed stops under their category, per person", () => {
+    const b = computeBudget(withCategories(), 2);
+    expect(b.activities).toBe(10 * 2);
+    expect(b.food).toBe((20 + 0) * 2);
+    expect(b.transport).toBe(5 * 2);
+    expect(b.accommodation).toBe(0);
+    expect(b.hasEstimates).toBe(false);
+  });
+
+  it("adds daily estimates on top and shares rooms between two travellers", () => {
+    const it = { ...withCategories(), budget: { accommodationPerNight: 100, foodPerDay: 30, transportPerDay: 10 } };
     const b = computeBudget(it, 3);
-    expect(b.activities).toBe((10 + 20 + 5) * 3);
     expect(b.accommodation).toBe(100 * 1 * 2); // 2 days → 1 night, 3 people → 2 rooms
-    expect(b.food).toBe(30 * 2 * 3);
-    expect(b.transport).toBe(10 * 2 * 3);
+    expect(b.food).toBe(20 * 3 + 30 * 2 * 3);
+    expect(b.transport).toBe(5 * 3 + 10 * 2 * 3);
+    expect(b.activities).toBe(10 * 3);
     expect(b.total).toBe(b.activities + b.accommodation + b.food + b.transport);
     expect(b.perPerson).toBeCloseTo(b.total / 3);
+    expect(b.hasEstimates).toBe(true);
+    expect(b.perDay).toEqual([
+      { day: 1, listed: 30 * 3 },
+      { day: 2, listed: 5 * 3 },
+    ]);
   });
 
   it("handles an empty itinerary", () => {
     const b = computeBudget(emptyItinerary({ destination: "X" }), 0);
     expect(b.total).toBe(0);
     expect(b.perDay).toEqual([]);
+  });
+});
+
+describe("lenient extras", () => {
+  it("trims over-long lists and text instead of rejecting the budget and tips", () => {
+    const line = JSON.stringify({
+      type: "extras",
+      budget: { accommodationPerNight: "2500", foodPerDay: 800, transportPerDay: -5 },
+      packing: Array.from({ length: 40 }, (_, i) => ({ item: `Item ${i}` })),
+      localTips: {
+        language: "Filipino",
+        phrases: Array.from({ length: 12 }, (_, i) => ({ phrase: `P${i}`, meaning: "m" })),
+        etiquette: Array.from({ length: 9 }, () => "Be kind"),
+        tipping: "x".repeat(500),
+        plugType: "Type A",
+        emergencyNumber: "911",
+      },
+    });
+    const event = parseEventLine(line);
+    expect(event?.type).toBe("extras");
+    if (event?.type !== "extras") return;
+    expect(event.budget).toEqual({ accommodationPerNight: 2500, foodPerDay: 800, transportPerDay: 0 });
+    expect(event.packing).toHaveLength(30);
+    expect(event.localTips.phrases).toHaveLength(8);
+    expect(event.localTips.etiquette).toHaveLength(6);
+    expect(event.localTips.tipping).toHaveLength(200);
   });
 });
 

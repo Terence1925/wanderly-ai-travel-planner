@@ -82,27 +82,35 @@ export const daySchema = z.object({
 });
 export type Day = z.infer<typeof daySchema>;
 
+/*
+ * The "extras" (budget, packing, tips) are nice-to-have, so they're validated leniently:
+ * over-long text and lists are trimmed instead of rejecting the whole line, which would
+ * silently drop the budget estimate, packing list and tips together.
+ */
+const text = (max: number) => z.string().transform((v) => v.slice(0, max));
+const list = <T extends z.ZodTypeAny>(item: T, max: number) =>
+  z.array(item).transform((v) => v.slice(0, max));
+const amount = z.coerce.number().min(0).catch(0);
+
 export const budgetEstimateSchema = z.object({
-  accommodationPerNight: z.number().min(0),
-  foodPerDay: z.number().min(0),
-  transportPerDay: z.number().min(0),
+  accommodationPerNight: amount,
+  foodPerDay: amount,
+  transportPerDay: amount,
 });
 
 export const localTipsSchema = z.object({
-  language: z.string().max(80),
-  phrases: z
-    .array(z.object({ phrase: z.string().max(80), meaning: z.string().max(80) }))
-    .max(8),
-  etiquette: z.array(z.string().max(200)).max(6),
-  tipping: z.string().max(200),
-  plugType: z.string().max(80),
-  emergencyNumber: z.string().max(40),
+  language: text(80),
+  phrases: list(z.object({ phrase: text(80), meaning: text(80) }), 8),
+  etiquette: list(text(200), 6),
+  tipping: text(200),
+  plugType: text(80),
+  emergencyNumber: text(40),
 });
 export type LocalTips = z.infer<typeof localTipsSchema>;
 
 export const packingItemSchema = z.object({
-  item: z.string().max(80),
-  reason: z.string().max(160).optional().default(""),
+  item: text(80),
+  reason: text(160).optional().default(""),
 });
 
 export const itinerarySchema = z.object({
@@ -117,7 +125,7 @@ export const itinerarySchema = z.object({
   currency: z.string().length(3),
   days: z.array(daySchema).max(MAX_TRIP_DAYS),
   budget: budgetEstimateSchema.optional(),
-  packing: z.array(packingItemSchema).max(30).optional().default([]),
+  packing: list(packingItemSchema, 30).optional().default([]),
   localTips: localTipsSchema.optional(),
 });
 export type Itinerary = z.infer<typeof itinerarySchema>;
@@ -140,7 +148,7 @@ export const streamEventSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("extras"),
     budget: budgetEstimateSchema,
-    packing: z.array(packingItemSchema).max(30),
+    packing: list(packingItemSchema, 30),
     localTips: localTipsSchema,
   }),
   z.object({ type: z.literal("reply"), text: z.string().max(1200) }),

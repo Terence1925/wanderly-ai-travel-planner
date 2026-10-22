@@ -8,10 +8,10 @@ import { useTripStore } from "@/store/trip-store";
 
 // Colours are validated categorical slots defined as --series-* tokens in globals.css.
 const SERIES = [
-  { key: "accommodation", label: "Stay" },
-  { key: "food", label: "Food" },
-  { key: "activities", label: "Activities" },
-  { key: "transport", label: "Transport" },
+  { key: "accommodation", label: "Stay", hint: "Hotel nights, two travellers per room" },
+  { key: "food", label: "Food", hint: "Meals in your itinerary plus snacks and drinks" },
+  { key: "activities", label: "Activities", hint: "Tickets, tours and experiences" },
+  { key: "transport", label: "Transport", hint: "Getting around between stops" },
 ] as const;
 
 const TARGET_CURRENCIES = ["USD", "EUR", "GBP", "PHP", "JPY", "AUD", "SGD", "CAD"] as const;
@@ -51,7 +51,7 @@ export function BudgetPanel() {
   const convert = (n: number) => n * (rate ?? 1);
   const showConverted = display !== base && rate !== null;
   const money = (n: number) => formatMoney(showConverted ? convert(n) : n, showConverted ? display : base);
-  const maxDay = Math.max(1, ...budget.perDay.map((d) => d.activities));
+  const maxDay = Math.max(1, ...budget.perDay.map((d) => d.listed));
 
   return (
     <div className="space-y-6">
@@ -115,15 +115,27 @@ export function BudgetPanel() {
                   return (
                     <tr key={s.key} className="border-t border-border first:border-0">
                       <th scope="row" className="py-2.5 text-left font-normal">
-                        <span className="flex items-center gap-2.5">
-                          <span className="size-3 rounded-sm" style={{ backgroundColor: `var(--series-${s.key})` }} />
-                          {s.label}
+                        <span className="flex items-start gap-2.5">
+                          <span
+                            className="mt-1 size-3 shrink-0 rounded-sm"
+                            style={{ backgroundColor: `var(--series-${s.key})` }}
+                          />
+                          <span>
+                            {s.label}
+                            <span className="block text-xs text-muted-foreground">{s.hint}</span>
+                          </span>
                         </span>
                       </th>
                       <td className="py-2.5 text-right text-muted-foreground tabular-nums">
                         {Math.round((value / budget.total) * 100)}%
                       </td>
-                      <td className="w-32 py-2.5 text-right font-medium tabular-nums">{money(value)}</td>
+                      <td className="w-32 py-2.5 text-right font-medium tabular-nums">
+                        {value === 0 && !budget.hasEstimates && s.key === "accommodation" ? (
+                          <span className="text-xs font-normal text-muted-foreground">Not estimated</span>
+                        ) : (
+                          money(value)
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -137,14 +149,14 @@ export function BudgetPanel() {
 
       {budget.perDay.length > 0 && (
         <section aria-labelledby="daily-title" className="rounded-3xl border border-border bg-card p-6">
-          <h3 id="daily-title" className="font-semibold">Activity spend per day</h3>
-          <p className="mb-5 text-xs text-muted-foreground">Tickets, meals and experiences for the whole group</p>
+          <h3 id="daily-title" className="font-semibold">Spend per day</h3>
+          <p className="mb-5 text-xs text-muted-foreground">Everything listed in each day, for the whole group</p>
           <div className="flex h-44 items-end gap-2 border-b border-border" role="list">
             {budget.perDay.map((d) => (
               <div
                 key={d.day}
                 role="listitem"
-                aria-label={`Day ${d.day}: ${money(d.activities)}`}
+                aria-label={`Day ${d.day}: ${money(d.listed)}`}
                 tabIndex={0}
                 onMouseEnter={() => setHovered(d.day)}
                 onMouseLeave={() => setHovered(null)}
@@ -155,12 +167,12 @@ export function BudgetPanel() {
                 {hovered === d.day && (
                   <div className="absolute -top-2 z-10 -translate-y-full whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs shadow-lg">
                     <span className="text-muted-foreground">Day {d.day}</span>{" "}
-                    <span className="font-semibold tabular-nums">{money(d.activities)}</span>
+                    <span className="font-semibold tabular-nums">{money(d.listed)}</span>
                   </div>
                 )}
                 <div
                   className={cn("w-full max-w-12 rounded-t-[4px] transition-opacity", hovered !== null && hovered !== d.day && "opacity-50")}
-                  style={{ height: `${Math.max(2, (d.activities / maxDay) * 100)}%`, backgroundColor: "var(--series-accommodation)" }}
+                  style={{ height: `${Math.max(2, (d.listed / maxDay) * 100)}%`, backgroundColor: "var(--series-accommodation)" }}
                 />
               </div>
             ))}
@@ -176,7 +188,10 @@ export function BudgetPanel() {
       )}
 
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Estimates assume two travellers per room. Prices are AI estimates in {base}; check before booking.
+        {budget.hasEstimates
+          ? "Includes daily estimates for your stay, snacks and local transport, assuming two travellers per room."
+          : "This trip has no daily estimates for stay and local transport, so only the listed stops are counted."}{" "}
+        Prices are AI estimates in {base}; check before booking.
       </p>
     </div>
   );
