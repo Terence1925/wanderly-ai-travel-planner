@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDestinationImage } from "@/lib/destination-image";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +16,13 @@ export function DestinationCover({ place, src, className, children }: Destinatio
   const looked = useDestinationImage(src ? undefined : place);
   const url = src ?? looked;
   const [isLoaded, setIsLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // Cached images can finish loading before React attaches onLoad, so check on mount.
+  useEffect(() => {
+    const img = imgRef.current;
+    if (img?.complete && img.naturalWidth > 0) setIsLoaded(true);
+  }, [url]);
 
   return (
     <div
@@ -27,6 +34,7 @@ export function DestinationCover({ place, src, className, children }: Destinatio
       {url && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          ref={imgRef}
           src={url}
           alt=""
           onLoad={() => setIsLoaded(true)}

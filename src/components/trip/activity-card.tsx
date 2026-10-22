@@ -5,13 +5,17 @@ import { motion } from "framer-motion";
 import { Clock, GripVertical, Lightbulb, MoreHorizontal, Trash2 } from "lucide-react";
 import { CATEGORY_META } from "@/lib/categories";
 import type { Activity } from "@/lib/schema";
+import { usePlacePhoto } from "@/lib/use-place-photo";
 import { cn, formatDuration, formatMoney } from "@/lib/utils";
+import { PlaceImage } from "./place-image";
 
 interface ActivityCardProps {
   activity: Activity;
   index: number;
   color: string;
   currency: string;
+  /** City or region name, used to find the right photo for this stop. */
+  destination: string;
   isSelected: boolean;
   canEdit: boolean;
   days: number[];
@@ -30,6 +34,7 @@ export const ActivityCard = forwardRef<HTMLLIElement, ActivityCardProps>(functio
     index,
     color,
     currency,
+    destination,
     isSelected,
     canEdit,
     days,
@@ -45,6 +50,7 @@ export const ActivityCard = forwardRef<HTMLLIElement, ActivityCardProps>(functio
 ) {
   const meta = CATEGORY_META[a.category];
   const Icon = meta.icon;
+  const { ref: photoRef, photo, isLoading } = usePlacePhoto<HTMLElement>(a.title, destination);
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${a.title} ${a.lat},${a.lng}`)}`;
 
   return (
@@ -66,12 +72,37 @@ export const ActivityCard = forwardRef<HTMLLIElement, ActivityCardProps>(functio
         {index + 1}
       </span>
       <article
+        ref={photoRef}
         onClick={onSelect}
         className={cn(
           "group cursor-pointer rounded-2xl border bg-card p-4 transition-all hover:shadow-lg hover:shadow-primary/5",
           isSelected ? "border-accent shadow-lg shadow-accent/10 ring-1 ring-accent/40" : "border-border",
         )}
       >
+        {isSelected && photo && (
+          <figure className="mb-4 overflow-hidden rounded-xl">
+            <PlaceImage
+              photo={photo}
+              isLoading={false}
+              alt={a.title}
+              icon={Icon}
+              tone={meta.tone}
+              className="aspect-[16/9] w-full rounded-xl"
+            />
+            <figcaption className="mt-1.5 text-[11px] text-muted-foreground">
+              Photo:{" "}
+              <a
+                href={photo.pageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="underline hover:text-foreground"
+              >
+                {photo.pageTitle}, Wikipedia
+              </a>
+            </figcaption>
+          </figure>
+        )}
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <div className="mb-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -109,6 +140,17 @@ export const ActivityCard = forwardRef<HTMLLIElement, ActivityCardProps>(functio
               </div>
             )}
           </div>
+
+          {!(isSelected && photo) && (
+            <PlaceImage
+              photo={photo}
+              isLoading={isLoading}
+              alt=""
+              icon={Icon}
+              tone={meta.tone}
+              className="size-16 shrink-0 rounded-xl sm:size-24"
+            />
+          )}
 
           {canEdit && (
             <div className="no-print flex shrink-0 flex-col items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">

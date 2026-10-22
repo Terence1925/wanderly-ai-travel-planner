@@ -9,6 +9,7 @@ import type { FeatureCollection, LineString } from "geojson";
 import { dayColor } from "@/lib/categories";
 import type { Itinerary } from "@/lib/schema";
 import { cn, formatDuration } from "@/lib/utils";
+import { usePlacePhotoNow } from "@/lib/use-place-photo";
 import { useTripPlayback } from "./use-trip-playback";
 
 // Copied into /public by scripts/copy-maplibre-worker.mjs (see the comment there).
@@ -109,6 +110,7 @@ export default function TripMap({
 
   const selected = points.find((p) => p.id === selectedId);
   const { destination } = itinerary;
+  const selectedPhoto = usePlacePhotoNow(selected?.title, destination.name);
   const hasCenter = destination.lat !== 0 || destination.lng !== 0;
 
   return (
@@ -193,7 +195,16 @@ export default function TripMap({
             offset={18}
             closeButton={false}
             onClose={() => onSelect?.(null)}
+            maxWidth="240px"
           >
+            {selectedPhoto && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={selectedPhoto.url}
+                alt=""
+                className="-mx-1 mb-2 aspect-[16/10] w-[calc(100%+0.5rem)] max-w-none rounded-lg object-cover"
+              />
+            )}
             <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: selected.color }}>
               Day {selected.day} · {selected.time}
             </p>

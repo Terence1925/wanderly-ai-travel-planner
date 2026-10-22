@@ -34,10 +34,11 @@ interface SortableItemProps {
   day: Day;
   dayNumbers: number[];
   currency: string;
+  destination: string;
   canEdit: boolean;
 }
 
-function SortableActivity({ activity, index, day, dayNumbers, currency, canEdit }: SortableItemProps) {
+function SortableActivity({ activity, index, day, dayNumbers, currency, destination, canEdit }: SortableItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: activity.id,
     disabled: !canEdit,
@@ -55,6 +56,7 @@ function SortableActivity({ activity, index, day, dayNumbers, currency, canEdit 
       index={index}
       color={dayColor(day.day)}
       currency={currency}
+      destination={destination}
       isSelected={selectedId === activity.id}
       canEdit={canEdit}
       days={dayNumbers}
@@ -72,10 +74,11 @@ function SortableActivity({ activity, index, day, dayNumbers, currency, canEdit 
   );
 }
 
-function DaySection({ day, dayNumbers, currency, canEdit, isGenerating }: {
+function DaySection({ day, dayNumbers, currency, destination, canEdit, isGenerating }: {
   day: Day;
   dayNumbers: number[];
   currency: string;
+  destination: string;
   canEdit: boolean;
   isGenerating: boolean;
 }) {
@@ -145,6 +148,7 @@ function DaySection({ day, dayNumbers, currency, canEdit, isGenerating }: {
                 day={day}
                 dayNumbers={dayNumbers}
                 currency={currency}
+                destination={destination}
                 canEdit={canEdit}
               />
             ))}
@@ -171,6 +175,7 @@ function DaySection({ day, dayNumbers, currency, canEdit, isGenerating }: {
 
 export function Timeline({ canEdit }: { canEdit: boolean }) {
   const itinerary = useTripStore((s) => s.trip?.itinerary);
+  const requestedPlace = useTripStore((s) => s.trip?.request.destination ?? "");
   const status = useTripStore((s) => s.status);
   if (!itinerary) return null;
 
@@ -186,6 +191,7 @@ export function Timeline({ canEdit }: { canEdit: boolean }) {
           day={day}
           dayNumbers={dayNumbers}
           currency={itinerary.currency}
+          destination={itinerary.destination.name || requestedPlace}
           canEdit={canEdit && !isGenerating}
           isGenerating={isGenerating && day.day === lastDay}
         />
