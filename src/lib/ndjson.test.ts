@@ -35,6 +35,31 @@ describe("parseEventLine", () => {
   });
 });
 
+describe("repairing common model JSON slips", () => {
+  const extrasBody =
+    '"budget":{"accommodationPerNight":6500,"foodPerDay":400,"transportPerDay":300},' +
+    '"packing":[{"item":"Reef-safe sunscreen","reason":"Protects coral"}],' +
+    '"localTips":{"language":"Filipino","phrases":[{"phrase":"Salamat","meaning":"Thank you"}],' +
+    '"etiquette":["Remove shoes indoors"],"tipping":"10% appreciated","plugType":"Type A","emergencyNumber":"911"}';
+
+  it("recovers a merged type key, as written by Gemini Flash-Lite", () => {
+    const event = parseEventLine(`{"type":"extras":{${extrasBody}}}`);
+    expect(event?.type).toBe("extras");
+    if (event?.type !== "extras") return;
+    expect(event.budget.accommodationPerNight).toBe(6500);
+    expect(event.packing[0]?.item).toBe("Reef-safe sunscreen");
+    expect(event.localTips.language).toBe("Filipino");
+  });
+
+  it("recovers trailing commas", () => {
+    expect(parseEventLine('{"type":"reply","text":"Hi",}')).toEqual({ type: "reply", text: "Hi" });
+  });
+
+  it("still rejects lines it can't safely repair", () => {
+    expect(parseEventLine('{"type":"extras":{"budget":')).toBeNull();
+  });
+});
+
 describe("readEventStream", () => {
   it("parses an NDJSON response split into tiny chunks and skips bad lines", async () => {
     const events: StreamEvent[] = [

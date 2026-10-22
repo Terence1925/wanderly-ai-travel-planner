@@ -25,12 +25,35 @@ export class LineBuffer {
 export function parseEventLine(line: string): StreamEvent | null {
   // Models occasionally wrap output in code fences; those lines are noise.
   if (line.startsWith("```")) return null;
-  try {
-    const result = streamEventSchema.safeParse(JSON.parse(line));
-    return result.success ? result.data : null;
-  } catch {
-    return null;
+  for (const candidate of [line, ...repairCandidates(line)]) {
+    try {
+      const result = streamEventSchema.safeParse(JSON.parse(candidate));
+      if (result.success) return result.data;
+    } catch {
+      // Try the next repair.
+    }
   }
+  return null;
+}
+
+const MERGED_TYPE = /^\{\s*"type"\s*:\s*"(\w+)"\s*:\s*\{/;
+
+/**
+ * Smaller models make a few predictable JSON slips. Fixing them here keeps a whole
+ * line (e.g. budget + packing + tips) from being thrown away over one misplaced brace.
+ */
+export function repairCandidates(line: string): string[] {
+  const candidates: string[] = [];
+  // {"type":"extras":{...}}  →  {"type":"extras",...}
+  const merged = line.match(MERGED_TYPE);
+  if (merged) {
+    const body = line.slice(merged[0].length).replace(/\}\s*$/, "");
+    candidates.push(`{"type":"${merged[1]}",${body}`);
+  }
+  // Trailing commas before a closing bracket.
+  const noTrailingCommas = line.replace(/,\s*([}\]])/g, "$1");
+  if (noTrailingCommas !== line) candidates.push(noTrailingCommas);
+  return candidates;
 }
 
 export function encodeEvent(event: StreamEvent): string {
