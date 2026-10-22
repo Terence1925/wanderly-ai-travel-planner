@@ -33,7 +33,7 @@ export async function POST(req: Request) {
 
   if (!isAiConfigured()) return ndjsonResponse(demoReply(), describeAiError);
 
-  const limit = await checkAiLimits(req.headers);
+  const limit = await checkAiLimits(req.headers, "chat");
   if (!limit.ok) return jsonError(limit.message, 429);
 
   const prompt = buildChatPrompt(parsed.data.itinerary, parsed.data.message);

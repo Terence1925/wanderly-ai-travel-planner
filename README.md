@@ -83,6 +83,9 @@ ANTHROPIC_API_KEY=sk-ant-...
 | `ANTHROPIC_MODEL` | No | Defaults to `claude-opus-5-5`. `claude-haiku-5-5` is much cheaper per trip |
 | `AI_DAILY_LIMIT` | No | Global AI calls per day (default 50) |
 | `AI_HOURLY_LIMIT_PER_IP` | No | Per visitor (default 5) |
+| `AI_CHAT_HOURLY_LIMIT_PER_IP` | No | Assistant messages per visitor per hour, separate from trips (default 20) |
+| `AI_CHAT_DAILY_LIMIT` | No | Site-wide assistant messages per day (default 300) |
+| `OWNER_EMAILS` | No | Comma-separated emails that skip AI limits when signed in (verified server-side) |
 | `NEXT_PUBLIC_SUPABASE_URL` | For accounts | Supabase → Project Settings → API |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | For accounts | Publishable key (or legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY`). Safe in the browser; RLS protects data |
 | `SUPABASE_SECRET_KEY` | Recommended | Secret key (or legacy `SUPABASE_SERVICE_ROLE_KEY`). **Server only.** Used solely for the shared AI rate limiter. Without it, limits are per server instance |

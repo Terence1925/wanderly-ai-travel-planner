@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "@/lib/supabase/config";
+import { getSupabaseServer } from "@/lib/supabase/server";
 
 const HOUR = 3600;
 const DAY = 86_400;
@@ -45,22 +46,60 @@ function clientIp(headers: Headers): string {
   return headers.get("x-forwarded-for")?.split(",")[0]?.trim() || headers.get("x-real-ip") || "unknown";
 }
 
+/**
+ * The site owner (OWNER_EMAILS, comma-separated) isn't rate limited. The email comes from
+ * Supabase's server-side getUser(), which verifies the session token, so it can't be spoofed.
+ */
+async function isOwner(): Promise<boolean> {
+  const owners = (process.env.OWNER_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  if (owners.length === 0) return false;
+  const supabase = await getSupabaseServer();
+  if (!supabase) return false;
+  const { data } = await supabase.auth.getUser();
+  const email = data.user?.email?.toLowerCase();
+  return Boolean(email && data.user?.email_confirmed_at && owners.includes(email));
+}
+
+export type AiAction = "generate" | "chat";
 export type LimitResult = { ok: true } | { ok: false; message: string };
 
-/** Checks the per-visitor hourly limit, then the global daily budget. */
-export async function checkAiLimits(headers: Headers): Promise<LimitResult> {
-  const perIp = Number(process.env.AI_HOURLY_LIMIT_PER_IP ?? 5);
-  const daily = Number(process.env.AI_DAILY_LIMIT ?? 50);
-  // IPs are hashed so the table never stores raw addresses.
-  const ipKey = `ip:${createHash("sha256").update(clientIp(headers)).digest("hex").slice(0, 32)}`;
+const LIMITS: Record<AiAction, { hourly: () => number; daily: () => number; noun: string }> = {
+  generate: {
+    hourly: () => Number(process.env.AI_HOURLY_LIMIT_PER_IP ?? 5),
+    daily: () => Number(process.env.AI_DAILY_LIMIT ?? 50),
+    noun: "trip generations",
+  },
+  chat: {
+    hourly: () => Number(process.env.AI_CHAT_HOURLY_LIMIT_PER_IP ?? 20),
+    daily: () => Number(process.env.AI_CHAT_DAILY_LIMIT ?? 300),
+    noun: "assistant messages",
+  },
+};
 
-  if (!(await consume(ipKey, perIp, HOUR))) {
-    return { ok: false, message: "You've hit the hourly AI limit for this demo. Try again later." };
+/**
+ * Trips and chat have separate allowances, so chatting never uses up trip generations.
+ * Each checks the per-visitor hourly limit, then a site-wide daily budget.
+ */
+export async function checkAiLimits(headers: Headers, action: AiAction): Promise<LimitResult> {
+  if (await isOwner()) return { ok: true };
+
+  const limit = LIMITS[action];
+  // IPs are hashed so the table never stores raw addresses.
+  const ipHash = createHash("sha256").update(clientIp(headers)).digest("hex").slice(0, 32);
+  // Trip generation keeps its original key so existing counters carry over.
+  const ipKey = action === "generate" ? `ip:${ipHash}` : `ip:${ipHash}:${action}`;
+  const dailyKey = action === "generate" ? "global:daily" : `global:daily:${action}`;
+
+  if (!(await consume(ipKey, limit.hourly(), HOUR))) {
+    return { ok: false, message: `You've used this hour's free ${limit.noun} for this demo. Try again later.` };
   }
-  if (!(await consume("global:daily", daily, DAY))) {
+  if (!(await consume(dailyKey, limit.daily(), DAY))) {
     return {
       ok: false,
-      message: "Today's AI budget for this demo is used up. Sample trips are still available.",
+      message: `Today's free ${limit.noun} for this demo are used up. Sample trips are still available.`,
     };
   }
   return { ok: true };

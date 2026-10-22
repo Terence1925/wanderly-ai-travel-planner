@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     return ndjsonResponse(demoTripEvents(parsed.data), describeAiError);
   }
 
-  const limit = await checkAiLimits(req.headers);
+  const limit = await checkAiLimits(req.headers, "generate");
   if (!limit.ok) return jsonError(limit.message, 429);
 
   return ndjsonResponse(aiTripEvents(parsed.data, req.signal), describeAiError);
